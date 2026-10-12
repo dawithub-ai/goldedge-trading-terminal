@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoldEdge Pro | Exness & TradingView Live Station</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              gold: '#f59e0b',
+              emerald: '#10b981',
+              dark: '#090d16',
+              card: '#0f172a',
+              border: '#1e293b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Robust Fallback Styles (Guarantees zero blank screen) */
+    body {
+      background-color: #070a12;
+      color: #f1f5f9;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #070a12; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    .glow-gold { box-shadow: 0 0 20px rgba(245, 158, 11, 0.25); }
+    .glow-emerald { box-shadow: 0 0 25px rgba(16, 185, 129, 0.35); }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-alert { animation: pulse-ring 1.5s infinite ease-in-out; }
+  </style>
+</head>
+<body class="bg-[#070a12] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-black">
+
+  <!-- TOP HEADER & TERMINAL CONTROL -->
+  <header class="border-b border-slate-800/80 bg-slate-900/95 backdrop-blur sticky top-0 z-40 px-3 py-2.5">
+    <div class="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand & Broker Status -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center font-black text-slate-950 text-sm shadow-md">
+          Au
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-sm font-extrabold tracking-tight bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 bg-clip-text text-transparent">
+              GoldEdge Pro
+            </h1>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 font-bold">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+              EXNESS BROKER READY
+            </span>
+          </div>
+          <p class="text-[10px] text-slate-400">Live Charting Terminal • Confluence Radar • Exness Trade Journal</p>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Bar -->
+      <div class="hidden md:flex items-center gap-5 px-3 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-xs font-mono">
+        <div>
+          <span class="text-slate-500 block text-[9px] uppercase">Symbol</span>
+          <span class="font-bold text-amber-400">XAU/USD (Gold)</span>
+        </div>
+        <div class="h-5 w-px bg-slate-800"></div>
+        <div>
+          <span class="text-slate-500 block text-[9px] uppercase">Radar Score</span>
+          <span id="header-score" class="font-bold text-rose-400">0%</span>
+        </div>
+        <div class="h-5 w-px bg-slate-800"></div>
+        <div>
+          <span class="text-slate-500 block text-[9px] uppercase">Total Realized PnL</span>
+          <span id="header-pnl" class="font-bold text-emerald-400">+$0.00</span>
+        </div>
+      </div>
+
+      <!-- Station View Switchers -->
+      <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-medium">
+        <button onclick="setViewMode('split')" id="btn-view-split" class="px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold transition">
+          📺 Split Terminal (Chart + Radar)
+        </button>
+        <button onclick="setViewMode('chart')" id="btn-view-chart" class="px-3 py-1 rounded text-slate-400 hover:text-slate-200 transition">
+          📈 Full Chart
+        </button>
+        <button onclick="setViewMode('journal')" id="btn-view-journal" class="px-3 py-1 rounded text-slate-400 hover:text-slate-200 transition">
+          📓 Full Journal (<span id="tab-trade-count">0</span>)
+        </button>
+        <button onclick="setViewMode('exness')" id="btn-view-exness" class="px-3 py-1 rounded text-slate-400 hover:text-amber-400 transition">
+          ⚡ Exness Sync Guide
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ALERT MODAL (TRIGGERED WHEN ALL CONFLUENCES ALIGN) -->
+  <div id="confluence-alert-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border-2 border-emerald-500 glow-emerald rounded-2xl max-w-md w-full p-6 text-center transform transition-all pulse-alert">
+      <div class="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-full mx-auto flex items-center justify-center text-3xl mb-3 border border-emerald-500/40">
+        ⚡
+      </div>
+      <div class="inline-block px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[11px] font-bold border border-emerald-500/30 mb-2">
+        A+ SETUP CONFIRMED • 100% CONFLUENCE
+      </div>
+      <h2 class="text-xl font-black text-white mb-1.5">All Confluences Aligned!</h2>
+      <p id="alert-modal-desc" class="text-xs text-slate-300 mb-4 leading-relaxed">
+        Key level rejection, liquidity sweep, session timing, and risk-to-reward criteria have all been satisfied on XAU/USD. Ready for Exness execution!
+      </p>
+      
+      <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 text-left mb-4 space-y-1 text-xs font-mono text-slate-300">
+        <div class="flex justify-between"><span>Instrument:</span> <span class="text-amber-400 font-bold">XAU/USD (Gold)</span></div>
+        <div class="flex justify-between"><span>Execution Side:</span> <span id="alert-modal-type" class="text-emerald-400 font-bold">Long / Buy Retest</span></div>
+        <div class="flex justify-between"><span>Broker Route:</span> <span class="text-slate-400">Exness Standard / Pro</span></div>
+      </div>
+
+      <div class="flex items-center justify-center gap-2">
+        <button onclick="dismissAlertModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
+          Dismiss
+        </button>
+        <button onclick="dismissAlertModal(); switchRightTab('calc');" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition flex items-center gap-1">
+          Open Exness Lot Calculator →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN TERMINAL AREA -->
+  <main class="max-w-[1700px] mx-auto w-full p-2.5 md:p-3 flex-1 flex flex-col gap-3">
+
+    <!-- SPLIT TERMINAL VIEW (DEFAULT & ULTIMATE) -->
+    <div id="view-split-container" class="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1">
+      
+      <!-- LEFT COLUMN: EMBEDDED REAL-TIME TRADINGVIEW CHART (7 COLS) -->
+      <div id="chart-panel" class="lg:col-span-7 bg-slate-900 border border-slate-800/80 rounded-xl overflow-hidden flex flex-col h-[740px]">
+        
+        <!-- Chart Controls Bar -->
+        <div class="bg-slate-950/80 px-3 py-2 border-b border-slate-800/80 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5 font-mono">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              LIVE TRADINGVIEW CHART: <span class="text-amber-400">XAU/USD</span>
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono hidden sm:inline">(Interactive Drawing & Indicators Enabled)</span>
+          </div>
+          
+          <div class="flex items-center gap-1.5 text-xs">
+            <select id="chart-interval-select" onchange="changeChartTimeframe(this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-xs text-slate-200 font-mono">
+              <option value="15">15M (Intraday)</option>
+              <option value="60" selected>1H (Key Levels)</option>
+              <option value="240">4H (Trend & Bias)</option>
+              <option value="D">Daily (Macro)</option>
+            </select>
+            <button onclick="reloadChart()" title="Reload Chart" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-xs font-mono">
+              ↻
+            </button>
+          </div>
+        </div>
+
+        <!-- Long / Short Position Tool Helper Banner -->
+        <div class="bg-amber-500/10 border-b border-amber-500/20 px-3 py-1.5 flex items-center justify-between text-[11px] text-amber-300">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold">📍 To draw Long / Short Position:</span>
+            <span class="text-slate-300">On the left toolbar, click the small arrow <strong class="text-amber-400">▶</strong> on the <strong>7th icon</strong> (Prediction & Measurement) → Select <strong>Long Position</strong> or <strong>Short Position</strong>.</span>
+          </div>
+          <span class="text-[10px] text-amber-400/80 font-mono hidden md:inline">Click ⭐ Star to pin to Favorites</span>
+        </div>
+
+        <!-- The Live Embedded TradingView Widget Frame -->
+        <div class="flex-1 w-full h-full relative bg-slate-950">
+          <iframe
+            id="tradingview-live-frame"
+            src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=OANDA%3AXAUUSD&interval=60&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=0f172a&studies=%5B%7B%22id%22%3A%22EMA%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%7D%5D&theme=dark&style=1&timezone=Etc%2FUTC&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=OANDA%3AXAUUSD"
+            class="w-full h-full border-0 block"
+            allow="fullscreen; clipboard-read; clipboard-write"
+            allowfullscreen>
+          </iframe>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: INTERACTIVE TRADING RADAR & EXNESS TOOLS (5 COLS) -->
+      <div id="tools-panel" class="lg:col-span-5 flex flex-col gap-3 h-[740px]">
+        
+        <!-- Right Column Navigation Sub-Tabs -->
+        <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-1.5 flex items-center justify-between gap-1 text-xs font-semibold">
+          <button onclick="switchRightTab('radar')" id="rtab-btn-radar" class="flex-1 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition text-center">
+            🎯 Confluence Radar
+          </button>
+          <button onclick="switchRightTab('calc')" id="rtab-btn-calc" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition text-center">
+            🧮 Exness Calculator
+          </button>
+          <button onclick="switchRightTab('quick-journal')" id="rtab-btn-quick-journal" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition text-center">
+            📓 Journal (<span id="quick-trade-count">0</span>)
+          </button>
+        </div>
+
+        <!-- SUB-TAB 1: CONFLUENCE RADAR & CHECKLIST -->
+        <div id="rtab-content-radar" class="flex-1 bg-slate-900 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between overflow-y-auto space-y-3">
+          
+          <!-- Score Summary Box -->
+          <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Execution Score</span>
+                <h3 id="confluence-status-label" class="text-base font-black text-rose-400">Waiting Confirmation</h3>
+              </div>
+              <div id="confluence-badge" class="px-2 py-0.5 rounded font-mono text-xs font-extrabold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                0%
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden">
+              <div id="confluence-progress-bar" class="bg-rose-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+              <span>Threshold: <strong class="text-slate-200">85% A+ Setup</strong></span>
+              <button onclick="testAudioChime()" class="text-amber-400 hover:text-amber-300 underline font-mono text-[11px]">
+                Test Alarm Chime 🔊
+              </button>
+            </div>
+          </div>
+
+          <!-- Trade Direction & Quick Actions -->
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="dir-buy" onclick="setDirection('BUY')" class="py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white transition flex items-center justify-center gap-1">
+              ▲ Long / Buy Setup
+            </button>
+            <button type="button" id="dir-sell" onclick="setDirection('SELL')" class="py-1.5 rounded-lg font-bold text-xs bg-slate-800 text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1">
+              ▼ Short / Sell Setup
+            </button>
+          </div>
+
+          <!-- The Confluence Checklist -->
+          <div class="space-y-2 flex-1" id="confluence-items-list">
+            <!-- Dynamically Rendered by JS -->
+          </div>
+
+          <!-- Reset & Simulate Controls -->
+          <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+            <button onclick="resetConfluences()" class="text-slate-400 hover:text-rose-400 transition">
+              ↺ Reset Checkboxes
+            </button>
+            <button onclick="triggerSimulatedAplus()" class="text-emerald-400 font-bold hover:underline">
+              ⚡ Simulate 100% Match
+            </button>
+          </div>
+
+        </div>
+
+        <!-- SUB-TAB 2: EXNESS CALCULATOR & 1-CLICK LOG -->
+        <div id="rtab-content-calc" class="hidden flex-1 bg-slate-900 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between overflow-y-auto space-y-3">
+          
+          <div class="border-b border-slate-800 pb-2 flex items-center justify-between">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Exness Lot & Risk Calculator</h3>
+              <span class="text-xs font-black text-amber-400">Contract: 100 oz per Standard Lot</span>
+            </div>
+            <span id="calc-rr-badge" class="px-2 py-0.5 rounded font-mono text-xs font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              1:3.0 R:R
+            </span>
+          </div>
+
+          <!-- Position Type Presets -->
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="setPresetPosition('LONG')" class="py-1 px-2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold hover:bg-emerald-500/20 transition flex items-center justify-center gap-1">
+              ▲ Preset Long (1:3 R:R)
+            </button>
+            <button type="button" onclick="setPresetPosition('SHORT')" class="py-1 px-2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[11px] font-bold hover:bg-rose-500/20 transition flex items-center justify-center gap-1">
+              ▼ Preset Short (1:3 R:R)
+            </button>
+          </div>
+
+          <!-- Inputs -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-0.5">Exness Balance ($)</label>
+              <input type="number" id="calc-balance" value="5000" oninput="calculateOutcome()" class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 font-mono text-slate-200">
+            </div>
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-0.5">Risk Per Trade (%)</label>
+              <input type="number" step="0.25" id="calc-risk-pct" value="1.0" oninput="calculateOutcome()" class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 font-mono text-amber-400">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-0.5">Entry Price ($)</label>
+              <input type="number" step="0.1" id="calc-entry" value="4122.0" oninput="calculateOutcome()" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 font-mono text-slate-200">
+            </div>
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-0.5">Stop Loss ($)</label>
+              <input type="number" step="0.1" id="calc-sl" value="4112.0" oninput="calculateOutcome()" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 font-mono text-rose-400">
+            </div>
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-0.5">Take Profit ($)</label>
+              <input type="number" step="0.1" id="calc-tp1" value="4152.0" oninput="calculateOutcome()" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 font-mono text-emerald-400">
+            </div>
+          </div>
+
+          <!-- Calculated Output Cards -->
+          <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block">EXNESS LOT SIZE</span>
+              <span id="res-lots" class="text-base font-bold text-amber-400">0.05 Lots</span>
+              <span id="res-risk-dist" class="text-[10px] text-slate-500 block">10.0 pts to SL</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block">MAX DOLLAR RISK</span>
+              <span id="res-risk-dollars" class="text-base font-bold text-rose-400">-$50.00</span>
+              <span class="text-[10px] text-slate-500 block">1.0% of Balance</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block">ESTIMATED PROFIT</span>
+              <span id="res-tp1-dollars" class="text-base font-bold text-emerald-400">+$150.00</span>
+              <span id="res-tp1-r" class="text-[10px] text-emerald-500 block">+3.0R (+3.0%)</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block">NEW BALANCE IF WON</span>
+              <span id="res-balance-win" class="text-base font-bold text-slate-200">$5,150.00</span>
+              <span class="text-[10px] text-slate-500 block">Account Growth</span>
+            </div>
+          </div>
+
+          <!-- Log Button -->
+          <button onclick="logCalculatedTrade()" class="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md">
+            📥 Record Trade into Exness Journal
+          </button>
+
+        </div>
+
+        <!-- SUB-TAB 3: QUICK JOURNAL -->
+        <div id="rtab-content-quick-journal" class="hidden flex-1 bg-slate-900 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between overflow-y-auto space-y-2">
+          
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-bold text-slate-300">Recent Exness Executions</span>
+            <button onclick="setViewMode('journal')" class="text-[11px] text-amber-400 hover:underline">
+              View Full Table →
+            </button>
+          </div>
+
+          <div id="quick-journal-list" class="space-y-2 flex-1 overflow-y-auto">
+            <!-- Populated by JS -->
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 flex justify-between text-[11px] text-slate-400 font-mono">
+            <span>Win Rate: <strong id="quick-winrate" class="text-emerald-400">0%</strong></span>
+            <span>Net PnL: <strong id="quick-pnl" class="text-emerald-400">+$0.00</strong></span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- FULL JOURNAL VIEW (EXPANDED) -->
+    <div id="view-full-journal" class="hidden space-y-4">
+      
+      <!-- Metrics Row -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <span class="text-xs text-slate-400 block">Net Realized PnL</span>
+          <span id="full-kpi-pnl" class="text-2xl font-mono font-black text-emerald-400">+$0.00</span>
+          <span id="full-kpi-pnl-r" class="text-xs text-slate-500 font-mono block">+0.0R Total</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <span class="text-xs text-slate-400 block">Win Rate</span>
+          <span id="full-kpi-winrate" class="text-2xl font-mono font-black text-slate-100">0.0%</span>
+          <span id="full-kpi-winloss-count" class="text-xs text-slate-500 block">0 Wins / 0 Losses</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <span class="text-xs text-slate-400 block">Profit Factor</span>
+          <span id="full-kpi-profitfactor" class="text-2xl font-mono font-black text-amber-400">0.00</span>
+          <span class="text-xs text-slate-500 block">Gross Profit / Gross Loss</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <span class="text-xs text-slate-400 block">A+ Setup Win Rate</span>
+          <span id="full-kpi-confluence-winrate" class="text-2xl font-mono font-black text-emerald-400">--%</span>
+          <span class="text-xs text-slate-500 block">Setups with ≥85% Confluence</span>
+        </div>
+      </div>
+
+      <!-- Journal Table -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="text-sm font-bold text-white">Exness Trade Records</h3>
+            <p class="text-xs text-slate-400">Logs every trade, lot size, confluence score, and outcome.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportJournalJSON()" class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold">Export JSON</button>
+            <button onclick="clearJournalPrompt()" class="px-2.5 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-xs font-semibold">Clear Logs</button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-950 text-slate-400 uppercase font-mono text-[10px] border-b border-slate-800">
+              <tr>
+                <th class="py-2 px-3">Date</th>
+                <th class="py-2 px-3">Symbol</th>
+                <th class="py-2 px-3">Side</th>
+                <th class="py-2 px-3">Entry</th>
+                <th class="py-2 px-3">SL / TP</th>
+                <th class="py-2 px-3">Lots</th>
+                <th class="py-2 px-3">Score</th>
+                <th class="py-2 px-3">Outcome</th>
+                <th class="py-2 px-3">Action</th>
+              </tr>
+            </thead>
+            <tbody id="full-journal-tbody" class="divide-y divide-slate-800/60 font-mono">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+        <div id="full-journal-empty-msg" class="py-8 text-center text-slate-500 text-xs">
+          No trades logged yet. Use the <strong>Exness Calculator</strong> on the split screen to record your setups!
+        </div>
+      </div>
+
+    </div>
+
+    <!-- EXNESS SYNC GUIDE VIEW -->
+    <div id="view-exness-guide" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-4xl mx-auto space-y-4">
+        <div class="border-b border-slate-800 pb-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-amber-400 font-mono">EXNESS BROKER INTEGRATION</span>
+          <h2 class="text-xl font-bold text-white mt-1">How Your Trades Sync from Exness</h2>
+          <p class="text-xs text-slate-400">You don't need paid TradingView webhooks. Here is how Exness works with this hub:</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed">
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <h4 class="font-bold text-amber-400 text-sm">Method A: Fast 1-Click Logging (No Setup)</h4>
+            <p class="text-slate-300">
+              1. Chart Gold on the left screen with full TradingView tools.<br>
+              2. Mark your confluences on the right screen.<br>
+              3. The calculator outputs your exact <strong>Exness Lot Size</strong>.<br>
+              4. Execute the order on Exness (MT4/MT5/App), then click <strong>"Record Trade into Exness Journal"</strong>.<br>
+              5. Click Win or Loss when it hits TP/SL to update your stats!
+            </p>
+          </div>
+
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <h4 class="font-bold text-emerald-400 text-sm">Method B: Exness MT4/MT5 Auto-Sync Script</h4>
+            <p class="text-slate-300">
+              If you trade on Exness MetaTrader 4 or 5 on PC, we've provided:
+              <br><code class="text-amber-300">Exness_Trade_Sync_MT5.mq5</code>
+              <br>Dropping this EA into your Exness MetaTrader exports your trade history automatically into your journal files.
+            </p>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+          <button onclick="setViewMode('split')" class="px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded-lg text-xs">
+            Return to Split Terminal →
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- JAVASCRIPT APP LOGIC -->
+  <script>
+    // --- CONFLUENCE RULES (XAU/USD OPTIMIZED) ---
+    const CONFLUENCE_RULES = [
+      {
+        id: "key_level",
+        category: "🏛️ Key Level",
+        title: "At Major Key Level / Round Number",
+        desc: "Price is reacting directly at a whole number ($4100, $4150, $4200) or high-timeframe S/R zone.",
+        points: 25
+      },
+      {
+        id: "liquidity_sweep",
+        category: "⚡ Liquidity",
+        title: "Liquidity Sweep / Stop Hunt Wick",
+        desc: "Price swept beyond Asian Range High/Low or PDH/PDL and left a long rejection wick (fakeout).",
+        points: 25
+      },
+      {
+        id: "session_time",
+        category: "⏰ Killzone",
+        title: "Active Session Timing (London or NY)",
+        desc: "Current time is during London Open (07:00–10:00 UTC) or NY Session (12:00–15:00 UTC).",
+        points: 15
+      },
+      {
+        id: "htf_trend",
+        category: "📊 Bias & Trend",
+        title: "Higher Timeframe Alignment (4H/Daily)",
+        desc: "The trade matches the prevailing 4-Hour or Daily market structure bias.",
+        points: 15
+      },
+      {
+        id: "ltf_shift",
+        category: "🎯 Lower Timeframe",
+        title: "M5 / M15 Market Structure Shift (ChoCh)",
+        desc: "Lower timeframe broke structure with a strong rejection or engulfing candle.",
+        points: 10
+      },
+      {
+        id: "rr_ratio",
+        category: "⚖️ Risk / Reward",
+        title: "Risk-to-Reward Ratio ≥ 1:2.5",
+        desc: "Target price allows at least 2.5x your defined dollar risk before next major barrier.",
+        points: 10
+      }
+    ];
+
+    let currentDirection = "BUY";
+    let tradesJournal = JSON.parse(localStorage.getItem("goldedge_exness_journal") || "[]");
+    let audioCtx = null;
+    let alertTriggeredForCurrent = false;
+
+    window.addEventListener("DOMContentLoaded", () => {
+      renderConfluences();
+      updateConfluences();
+      calculateOutcome();
+      renderAllJournals();
+    });
+
+    // --- VIEW MODE SWITCHER ---
+    function setViewMode(mode) {
+      const splitCont = document.getElementById('view-split-container');
+      const chartPanel = document.getElementById('chart-panel');
+      const toolsPanel = document.getElementById('tools-panel');
+      const fullJournal = document.getElementById('view-full-journal');
+      const exnessGuide = document.getElementById('view-exness-guide');
+
+      ['split', 'chart', 'journal', 'exness'].forEach(m => {
+        const btn = document.getElementById(`btn-view-${m}`);
+        if (btn) btn.className = "px-3 py-1 rounded text-slate-400 hover:text-slate-200 transition";
+      });
+
+      splitCont.classList.add('hidden');
+      fullJournal.classList.add('hidden');
+      exnessGuide.classList.add('hidden');
+
+      if (mode === 'split') {
+        document.getElementById('btn-view-split').className = "px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold transition";
+        splitCont.classList.remove('hidden');
+        chartPanel.className = "lg:col-span-7 bg-slate-900 border border-slate-800/80 rounded-xl overflow-hidden flex flex-col h-[740px]";
+        toolsPanel.className = "lg:col-span-5 flex flex-col gap-3 h-[740px]";
+        toolsPanel.classList.remove('hidden');
+      } else if (mode === 'chart') {
+        document.getElementById('btn-view-chart').className = "px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold transition";
+        splitCont.classList.remove('hidden');
+        chartPanel.className = "lg:col-span-12 bg-slate-900 border border-slate-800/80 rounded-xl overflow-hidden flex flex-col h-[820px]";
+        toolsPanel.classList.add('hidden');
+      } else if (mode === 'journal') {
+        document.getElementById('btn-view-journal').className = "px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold transition";
+        fullJournal.classList.remove('hidden');
+      } else if (mode === 'exness') {
+        document.getElementById('btn-view-exness').className = "px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold transition";
+        exnessGuide.classList.remove('hidden');
+      }
+    }
+
+    // --- RIGHT COLUMN SUB-TABS ---
+    function switchRightTab(tab) {
+      ['radar', 'calc', 'quick-journal'].forEach(t => {
+        document.getElementById(`rtab-content-${t}`).classList.add('hidden');
+        const b = document.getElementById(`rtab-btn-${t}`);
+        if (b) b.className = "flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition text-center";
+      });
+
+      document.getElementById(`rtab-content-${tab}`).classList.remove('hidden');
+      document.getElementById(`rtab-btn-${tab}`).className = "flex-1 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition text-center";
+    }
+
+    // --- TRADINGVIEW TIMEFRAME SWITCHER ---
+    function changeChartTimeframe(interval) {
+      const frame = document.getElementById('tradingview-live-frame');
+      frame.src = `https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=OANDA%3AXAUUSD&interval=${interval}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=0f172a&studies=%5B%7B%22id%22%3A%22EMA%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%7D%5D&theme=dark&style=1&timezone=Etc%2FUTC&locale=en`;
+    }
+
+    function reloadChart() {
+      const frame = document.getElementById('tradingview-live-frame');
+      frame.src = frame.src;
+    }
+
+    // --- DIRECTION TOGGLE ---
+    function setDirection(dir) {
+      currentDirection = dir;
+      const btnBuy = document.getElementById('dir-buy');
+      const btnSell = document.getElementById('dir-sell');
+      if (dir === 'BUY') {
+        btnBuy.className = "py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white transition flex items-center justify-center gap-1";
+        btnSell.className = "py-1.5 rounded-lg font-bold text-xs bg-slate-800 text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1";
+      } else {
+        btnSell.className = "py-1.5 rounded-lg font-bold text-xs bg-rose-600 text-white transition flex items-center justify-center gap-1";
+        btnBuy.className = "py-1.5 rounded-lg font-bold text-xs bg-slate-800 text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1";
+      }
+    }
+
+    // --- RENDER CONFLUENCE CHECKLIST ---
+    function renderConfluences() {
+      const container = document.getElementById("confluence-items-list");
+      container.innerHTML = "";
+
+      CONFLUENCE_RULES.forEach(rule => {
+        const div = document.createElement("div");
+        div.className = "bg-slate-950 border border-slate-800/80 rounded-lg p-2.5 flex items-start gap-2.5 hover:border-slate-700 transition cursor-pointer";
+        div.onclick = (e) => {
+          if (e.target.tagName !== "INPUT") {
+            const cb = div.querySelector('input');
+            cb.checked = !cb.checked;
+            updateConfluences();
+          }
+        };
+
+        div.innerHTML = `
+          <input type="checkbox" id="chk-${rule.id}" value="${rule.points}" onchange="updateConfluences()" class="mt-0.5 w-3.5 h-3.5 rounded text-amber-500 bg-slate-900 border-slate-700">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-200 truncate">${rule.title}</span>
+              <span class="text-[10px] font-mono font-bold text-amber-400">+${rule.points}pt</span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight mt-0.5">${rule.desc}</p>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // --- UPDATE CONFLUENCE SCORE & ALERTS ---
+    function updateConfluences() {
+      let total = 0;
+      CONFLUENCE_RULES.forEach(rule => {
+        const cb = document.getElementById(`chk-${rule.id}`);
+        if (cb && cb.checked) total += rule.points;
+      });
+
+      document.getElementById('confluence-badge').innerText = `${total}%`;
+      document.getElementById('header-score').innerText = `${total}%`;
+      document.getElementById('confluence-progress-bar').style.width = `${total}%`;
+
+      const statusLabel = document.getElementById('confluence-status-label');
+      const progressBar = document.getElementById('confluence-progress-bar');
+      const headerScore = document.getElementById('header-score');
+
+      if (total >= 100) {
+        statusLabel.innerText = "🔥 A+ Institutional Setup";
+        statusLabel.className = "text-base font-black text-emerald-400";
+        progressBar.className = "bg-emerald-500 h-full transition-all duration-300";
+        headerScore.className = "font-bold text-emerald-400";
+
+        if (!alertTriggeredForCurrent) {
+          triggerConfluenceAlert(total);
+          alertTriggeredForCurrent = true;
+        }
+      } else if (total >= 85) {
+        statusLabel.innerText = "⚡ High Confluence (Valid)";
+        statusLabel.className = "text-base font-black text-amber-400";
+        progressBar.className = "bg-amber-500 h-full transition-all duration-300";
+        headerScore.className = "font-bold text-amber-400";
+
+        if (!alertTriggeredForCurrent) {
+          triggerConfluenceAlert(total);
+          alertTriggeredForCurrent = true;
+        }
+      } else {
+        alertTriggeredForCurrent = false;
+        statusLabel.innerText = total > 0 ? "⚠️ Developing Setup" : "Waiting Confirmation";
+        statusLabel.className = "text-base font-black text-rose-400";
+        progressBar.className = "bg-rose-500 h-full transition-all duration-300";
+        headerScore.className = "font-bold text-slate-400";
+      }
+    }
+
+    function resetConfluences() {
+      CONFLUENCE_RULES.forEach(rule => {
+        const cb = document.getElementById(`chk-${rule.id}`);
+        if (cb) cb.checked = false;
+      });
+      alertTriggeredForCurrent = false;
+      updateConfluences();
+    }
+
+    function triggerSimulatedAplus() {
+      CONFLUENCE_RULES.forEach(rule => {
+        const cb = document.getElementById(`chk-${rule.id}`);
+        if (cb) cb.checked = true;
+      });
+      alertTriggeredForCurrent = false;
+      updateConfluences();
+    }
+
+    // --- AUDIO CHIME VIA WEB AUDIO API ---
+    function playTone(freq, type, duration, startTime) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.3, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    }
+
+    function testAudioChime() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      playTone(587.33, 'sine', 0.15, now);
+      playTone(880.00, 'sine', 0.18, now + 0.12);
+      playTone(1174.66, 'sine', 0.35, now + 0.25);
+    }
+
+    function triggerConfluenceAlert(score) {
+      testAudioChime();
+      const modal = document.getElementById('confluence-alert-modal');
+      document.getElementById('alert-modal-type').innerText = `${currentDirection} (${score}% Confluence)`;
+      modal.classList.remove('hidden');
+    }
+
+    function dismissAlertModal() {
+      document.getElementById('confluence-alert-modal').classList.add('hidden');
+    }
+
+    // --- QUICK LONG / SHORT POSITION PRESET ---
+    function setPresetPosition(type) {
+      const current = parseFloat(document.getElementById('calc-entry').value) || 4122.0;
+      if (type === 'LONG') {
+        document.getElementById('calc-sl').value = (current - 10.0).toFixed(1);
+        document.getElementById('calc-tp1').value = (current + 30.0).toFixed(1);
+      } else {
+        document.getElementById('calc-sl').value = (current + 10.0).toFixed(1);
+        document.getElementById('calc-tp1').value = (current - 30.0).toFixed(1);
+      }
+      calculateOutcome();
+    }
+
+    // --- CALCULATOR FOR EXNESS GOLD ---
+    function calculateOutcome() {
+      const balance = parseFloat(document.getElementById('calc-balance').value) || 5000;
+      const riskPct = parseFloat(document.getElementById('calc-risk-pct').value) || 1.0;
+      const entry = parseFloat(document.getElementById('calc-entry').value) || 4122;
+      const sl = parseFloat(document.getElementById('calc-sl').value) || 4112;
+      const tp1 = parseFloat(document.getElementById('calc-tp1').value) || 4152;
+
+      const riskDollars = balance * (riskPct / 100);
+      const slDistance = Math.abs(entry - sl);
+      if (slDistance === 0) return;
+
+      // Exness Gold: 1 standard lot = 100 oz. $1 price move = $100 per lot.
+      // Lot Size = Risk ($) / (slDistance * 100)
+      let lotSize = riskDollars / (slDistance * 100);
+      lotSize = Math.max(0.01, Math.round(lotSize * 100) / 100);
+
+      const tpDistance = Math.abs(tp1 - entry);
+      const tpDollars = lotSize * tpDistance * 100;
+      const rrRatio = (tpDistance / slDistance).toFixed(1);
+
+      document.getElementById('res-lots').innerText = `${lotSize.toFixed(2)} Lots`;
+      document.getElementById('res-risk-dollars').innerText = `-$${riskDollars.toFixed(2)}`;
+      document.getElementById('res-risk-dist').innerText = `${slDistance.toFixed(1)} pts to SL`;
+      document.getElementById('res-tp1-dollars').innerText = `+$${tpDollars.toFixed(2)}`;
+      document.getElementById('res-tp1-r').innerText = `+${rrRatio}R (+${((tpDollars / balance) * 100).toFixed(1)}%)`;
+      document.getElementById('res-balance-win').innerText = `$${(balance + tpDollars).toFixed(2)}`;
+      document.getElementById('calc-rr-badge').innerText = `1:${rrRatio} R:R`;
+    }
+
+    // --- TRADE LOGGING ---
+    function logCalculatedTrade() {
+      const entry = parseFloat(document.getElementById('calc-entry').value);
+      const sl = parseFloat(document.getElementById('calc-sl').value);
+      const tp1 = parseFloat(document.getElementById('calc-tp1').value);
+      const lots = document.getElementById('res-lots').innerText;
+      const risk = document.getElementById('res-risk-dollars').innerText;
+      const reward = document.getElementById('res-tp1-dollars').innerText;
+      const score = document.getElementById('confluence-badge').innerText;
+
+      const trade = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        symbol: "XAU/USD",
+        side: entry > sl ? "BUY" : "SELL",
+        entry: entry,
+        sl: sl,
+        tp: tp1,
+        lots: lots,
+        risk: risk,
+        reward: reward,
+        confluenceScore: parseInt(score) || 85,
+        status: "OPEN",
+        pnl: 0,
+        rMultiple: 0
+      };
+
+      tradesJournal.unshift(trade);
+      saveJournal();
+      renderAllJournals();
+      switchRightTab('quick-journal');
+    }
+
+    function markTradeOutcome(id, outcome) {
+      const trade = tradesJournal.find(t => t.id === id);
+      if (!trade) return;
+
+      const riskNum = parseFloat(trade.risk.replace(/[^0-9.]/g, '')) || 50;
+      const rewardNum = parseFloat(trade.reward.replace(/[^0-9.]/g, '')) || 150;
+
+      if (outcome === 'WIN') {
+        trade.status = 'WIN';
+        trade.pnl = rewardNum;
+        trade.rMultiple = (rewardNum / riskNum);
+      } else if (outcome === 'LOSS') {
+        trade.status = 'LOSS';
+        trade.pnl = -riskNum;
+        trade.rMultiple = -1.0;
+      } else if (outcome === 'BE') {
+        trade.status = 'BE';
+        trade.pnl = 0;
+        trade.rMultiple = 0;
+      }
+      saveJournal();
+      renderAllJournals();
+    }
+
+    function deleteTrade(id) {
+      tradesJournal = tradesJournal.filter(t => t.id !== id);
+      saveJournal();
+      renderAllJournals();
+    }
+
+    function saveJournal() {
+      localStorage.setItem("goldedge_exness_journal", JSON.stringify(tradesJournal));
+    }
+
+    function renderAllJournals() {
+      const countEl = document.getElementById('tab-trade-count');
+      const quickCountEl = document.getElementById('quick-trade-count');
+      countEl.innerText = tradesJournal.length;
+      quickCountEl.innerText = tradesJournal.length;
+
+      // Stats
+      let totalPnl = 0, totalR = 0, wins = 0, losses = 0, grossProfit = 0, grossLoss = 0;
+      let highConfTotal = 0, highConfWins = 0;
+
+      tradesJournal.forEach(t => {
+        if (t.status === 'WIN') { wins++; grossProfit += t.pnl; }
+        else if (t.status === 'LOSS') { losses++; grossLoss += Math.abs(t.pnl); }
+
+        if (t.status !== 'OPEN') {
+          totalPnl += t.pnl;
+          totalR += t.rMultiple;
+          if (t.confluenceScore >= 85) {
+            highConfTotal++;
+            if (t.status === 'WIN') highConfWins++;
+          }
+        }
+      });
+
+      const closedCount = wins + losses;
+      const winRate = closedCount > 0 ? ((wins / closedCount) * 100).toFixed(1) : "0.0";
+      const pf = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? "MAX" : "0.00");
+      const highConfWr = highConfTotal > 0 ? `${((highConfWins / highConfTotal) * 100).toFixed(1)}%` : "--%";
+
+      // Update Header & Full KPIs
+      document.getElementById('header-pnl').innerText = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
+      document.getElementById('header-pnl').className = `font-bold ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      document.getElementById('quick-winrate').innerText = `${winRate}%`;
+      document.getElementById('quick-pnl').innerText = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
+
+      document.getElementById('full-kpi-pnl').innerText = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
+      document.getElementById('full-kpi-pnl').className = `text-2xl font-mono font-black ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      document.getElementById('full-kpi-pnl-r').innerText = `${totalR >= 0 ? '+' : ''}${totalR.toFixed(1)}R Total`;
+      document.getElementById('full-kpi-winrate').innerText = `${winRate}%`;
+      document.getElementById('full-kpi-winloss-count').innerText = `${wins} Wins / ${losses} Losses`;
+      document.getElementById('full-kpi-profitfactor').innerText = pf;
+      document.getElementById('full-kpi-confluence-winrate').innerText = highConfWr;
+
+      // Render Quick List
+      const quickContainer = document.getElementById('quick-journal-list');
+      quickContainer.innerHTML = "";
+      if (tradesJournal.length === 0) {
+        quickContainer.innerHTML = `<p class="text-xs text-slate-500 py-6 text-center">No trades logged yet.</p>`;
+      } else {
+        tradesJournal.slice(0, 5).forEach(trade => {
+          const div = document.createElement('div');
+          div.className = "bg-slate-950 p-2 rounded border border-slate-800 text-xs font-mono flex items-center justify-between";
+          div.innerHTML = `
+            <div>
+              <span class="font-bold ${trade.side === 'BUY' ? 'text-emerald-400' : 'text-rose-400'}">${trade.side}</span>
+              <span class="text-slate-300">@ ${trade.entry}</span>
+              <span class="text-slate-500 text-[10px]">(${trade.lots})</span>
+            </div>
+            <div>
+              ${trade.status === 'OPEN'
+                ? `<div class="flex gap-1">
+                     <button onclick="markTradeOutcome(${trade.id}, 'WIN')" class="px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">Win</button>
+                     <button onclick="markTradeOutcome(${trade.id}, 'LOSS')" class="px-1 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[10px] font-bold">Loss</button>
+                   </div>`
+                : `<span class="font-bold ${trade.status === 'WIN' ? 'text-emerald-400' : 'text-rose-400'}">${trade.status}: $${trade.pnl}</span>`
+              }
+            </div>
+          `;
+          quickContainer.appendChild(div);
+        });
+      }
+
+      // Render Full Table
+      const fullTbody = document.getElementById('full-journal-tbody');
+      const emptyMsg = document.getElementById('full-journal-empty-msg');
+      fullTbody.innerHTML = "";
+      if (tradesJournal.length === 0) {
+        emptyMsg.classList.remove('hidden');
+      } else {
+        emptyMsg.classList.add('hidden');
+        tradesJournal.forEach(trade => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-950/40 transition";
+          tr.innerHTML = `
+            <td class="py-2 px-3 text-slate-400">${trade.date}</td>
+            <td class="py-2 px-3 font-bold text-amber-400">${trade.symbol}</td>
+            <td class="py-2 px-3">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${trade.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                ${trade.side}
+              </span>
+            </td>
+            <td class="py-2 px-3 text-slate-200">${trade.entry}</td>
+            <td class="py-2 px-3 text-slate-400">${trade.sl} / <span class="text-emerald-400">${trade.tp}</span></td>
+            <td class="py-2 px-3 text-slate-300">${trade.lots}</td>
+            <td class="py-2 px-3"><span class="font-bold text-amber-400">${trade.confluenceScore}%</span></td>
+            <td class="py-2 px-3">
+              ${trade.status === 'OPEN' 
+                ? `<div class="flex items-center gap-1">
+                     <button onclick="markTradeOutcome(${trade.id}, 'WIN')" class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">Win</button>
+                     <button onclick="markTradeOutcome(${trade.id}, 'LOSS')" class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold text-[10px]">Loss</button>
+                     <button onclick="markTradeOutcome(${trade.id}, 'BE')" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-bold text-[10px]">BE</button>
+                   </div>`
+                : `<span class="font-bold ${trade.status === 'WIN' ? 'text-emerald-400' : 'text-rose-400'}">${trade.status}: ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)} (${trade.rMultiple >= 0 ? '+' : ''}${trade.rMultiple.toFixed(1)}R)</span>`
+              }
+            </td>
+            <td class="py-2 px-3"><button onclick="deleteTrade(${trade.id})" class="text-slate-500 hover:text-rose-400">✕</button></td>
+          `;
+          fullTbody.appendChild(tr);
+        });
+      }
+    }
+
+    function clearJournalPrompt() {
+      if (confirm("Clear all Exness trade records?")) {
+        tradesJournal = [];
+        saveJournal();
+        renderAllJournals();
+      }
+    }
+
+    function exportJournalJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tradesJournal, null, 2));
+      const a = document.createElement('a');
+      a.setAttribute("href", dataStr);
+      a.setAttribute("download", `exness_gold_journal_${Date.now()}.json`);
+      a.click();
+    }
+  </script>
+</body>
+</html>
