@@ -1,0 +1,61 @@
+// © GoldEdge Pro - Pine Script v5 Indicator
+// Connects TradingView to your personal Gold Trading Hub
+//@version=5
+indicator("GoldEdge Pro - XAU/USD Confluence Detector", overlay=true)
+
+// ==========================================
+// 1. INPUT SETTINGS
+// ==========================================
+lookback_period   = input.int(24, "Daily Session Lookback (Bars)", minval=5)
+enable_centuries  = input.bool(true, "Detect Century Numbers ($50/$100 Intervals)")
+min_rr_threshold  = input.float(2.5, "Minimum Risk:Reward Ratio")
+
+// ==========================================
+// 2. LIQUIDITY LEVELS (PDH / PDL & ASIA RANGE)
+// ==========================================
+pdh = ta.highest(high[1], lookback_period)
+pdl = ta.lowest(low[1], lookback_period)
+
+// Plot Levels
+plot(pdh, "Previous Session High (PDH)", color=color.orange, linewidth=1, style=plot.style_circles)
+plot(pdl, "Previous Session Low (PDL)", color=color.blue, linewidth=1, style=plot.style_circles)
+
+// ==========================================
+// 3. CONFLUENCE DETECTION ENGINE
+// ==========================================
+// A. Liquidity Sweep: Wick poked past the high/low, but candle closed back inside
+bull_sweep = low < pdl and close > pdl and (close - low) > (high - close)
+bear_sweep = high > pdh and close < pdh and (high - close) > (close - low)
+
+// B. Key Round Number ($50 / $100 interval proximity)
+is_round_level = math.abs(close % 50) < 2.5 or math.abs(close % 100) < 2.5
+
+// C. Market Structure Filter (EMA 50 alignment)
+ema50 = ta.ema(close, 50)
+trend_bull = close > ema50
+trend_bear = close < ema50
+
+// Total Confluences Met
+bull_confluence = bull_sweep and is_round_level and trend_bull
+bear_confluence = bear_sweep and is_round_level and trend_bear
+
+// ==========================================
+// 4. VISUAL SIGNALS ON CHART
+// ==========================================
+plotshape(bull_confluence, title="BUY Confluence Confirmed", 
+          style=shape.labelup, location=location.belowbar, 
+          color=color.green, text="⚡ BUY CONFLUENCE", textcolor=color.white, size=size.normal)
+
+plotshape(bear_confluence, title="SELL Confluence Confirmed", 
+          style=shape.labeldown, location=location.abovebar, 
+          color=color.red, text="⚡ SELL CONFLUENCE", textcolor=color.white, size=size.normal)
+
+// ==========================================
+// 5. TRADINGVIEW WEBHOOK ALERTS (JSON)
+// ==========================================
+// Setup TradingView Alert: Condition -> GoldEdge Pro, Action -> Webhook URL
+if bull_confluence
+    alert('{"symbol":"XAUUSD","action":"BUY","price":' + str.tostring(close) + ',"confluences":["SWEEP_LOW","ROUND_NUMBER","EMA_ALIGNMENT"],"notes":"Bullish Liquidity Sweep at Key Level"}', alert.freq_once_per_bar_close)
+
+if bear_confluence
+    alert('{"symbol":"XAUUSD","action":"SELL","price":' + str.tostring(close) + ',"confluences":["SWEEP_HIGH","ROUND_NUMBER","EMA_ALIGNMENT"],"notes":"Bearish Liquidity Sweep at Key Level"}', alert.freq_once_per_bar_close)
